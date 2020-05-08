@@ -4505,8 +4505,8 @@ function getParamsWizardSetupHandlers() {
     return filtersWithGenericWizardButton.map(filterMetadata => { 
             return {
                 filterId: filterMetadata.filterId,
-                setupHandler: selectElement => createGenericWizardFilterButton(selectElement)
-                    .click(() => filterMetadata.openHandler)
+                setupHandler: $selectElement => createGenericWizardFilterButton($selectElement)
+                    .click(() => filterMetadata.openHandler(getFilterTitleFromSelectElement($selectElement), $selectElement))
             }})
             .concat(filtersWithDedicatedSetup)
 
