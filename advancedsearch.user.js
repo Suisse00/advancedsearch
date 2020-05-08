@@ -291,6 +291,9 @@ var mydklink = getMyDigiKeyLink();
 var gIndexLink = getIndexLink();
 var cacheflag = false;
 
+// pv519 - Data Converters use '; ' (search for attiny)
+const CHECKBOX_SEPARATOR = ', ';
+
 
 //loads before document status is ready
 function preloadFormat() {
@@ -1216,7 +1219,7 @@ function formatFilterResultsPage() {
         // wrapFilterTable(); //dependent on floatapplyfilters()
 
         addParamWizards(); // TODO addback
-        addParamWizards2();
+        //addVoltageWizards();
         // if(localStorage.getItem('squishedFilters') == 1){
         //     squishedFilters();
         // }
@@ -4422,49 +4425,112 @@ function addPowerSupplySelector() {
     )
 }
 
+function getFilterTitleFromSelectElement($selectElement) {
+    var previousSibling = $selectElement.prev();
+    if(!previousSibling.hasClass('filters-headline')) {
+        return null;
+    }
 
+    return previousSibling.text();
+}
 
+function createGenericCheckboxWizardButton($selectElement) {
+    // This is a generic factory, if we are useless then we won't add the useless button.
+    //  (Could end up being no so user friendly but applying filter will reload the page and our selections will get lost anyway)
+    if(!$selectElement.attr('multiple') || 
+        !$('option', $selectElement)
+            .is((index, option) => $(option).text().trim().includes(CHECKBOX_SEPARATOR))) {
+        return false;
+    }
 
+    var title = getFilterTitleFromSelectElement($selectElement);
+
+    createGenericWizardFilterButton($selectElement)
+        .click(() => openCheckboxWizard2(title, $selectElement));
+}
+
+function createGenericWizardFilterButton($selectElement) {
+    return $selectElement.parent()
+        .append('<span class="adv pure-button myRedButton">Selection Wizard</span>');
+}
 
 function addParamWizards() {
     _log('addParamWizards() Start', DLOG);
+    
+    var filters = getParamsWizardSetupHandlers();
+
+    _log('addParamWizards() Start to add custom wizards', DLOG);
+    for(var filterMetadata of filters) {
+        filterMetadata.setupHandler();
+    }
+    _log('addParamWizards() End to add custom wizards', DLOG);
+
+    // For all remaining filters we try to add a checkbox
+    _log('addParamWizards() Start to add the generic checkbox button wizard to remaining filters', DLOG);
+    var filterIdsToSkip = filters.map(filterMetadata => filterMetadata.filterId);
+    $('select.filter-selectors')
+        .each((i, selectElement) => {
+            var $selectElement = $(selectElement)
+
+            var filterId = $selectElement.attr('name')
+
+            if(filterIdsToSkip.includes(filterId)) {
+                return;
+            }
+
+            createGenericCheckboxWizardButton($selectElement);
+    });
+
+    _log('addParamWizards() End to add the generic checkbox button wizard to remaining filters', DLOG);
+    _log('addParamWizards() End', DLOG);
+}
+
+function getParamsWizardSetupHandlers() {
+    var filtersWithGenericWizardButton = [
+        {filterId: 'pv252', openHandler: openTemperatureWizard},
+        {filterId: 'pv1113', openHandler: openCheckboxWizard},
+        {filterId: 'pv1114', openHandler: openCheckboxWizard},
+        {filterId: 'pv16', openHandler: openCheckboxWizard2},
+        {filterId: 'pv1291', openHandler: openCheckboxWizard2},
+    ];
+
+    var filtersWithDedicatedSetup = [
+        {filterId: 'pv127', setupHandler: voltageHelper},
+        {filterId: 'pv569', setupHandler: voltageHelper},
+        {filterId: 'pv48', setupHandler: voltageHelper},
+        {filterId: 'pv276', setupHandler: voltageHelper},
+        {filterId: 'pv1112', setupHandler: voltageHelper}
+    ];
+
+    return filtersWithGenericWizardButton.map(filterMetadata => { 
+            return {
+                filterId: filterMetadata.filterId,
+                setupHandler: selectElement => createGenericWizardFilterButton(selectElement)
+                    .click(() => filterMetadata.openHandler)
+            }})
+            .concat(filtersWithDedicatedSetup)
+
+            .map(filterMetadata => {
+
+                var $selectElement = $('select[name="' + filterMetadata.filterId + '"]');
+
+                return { 
+                    filterId: filterMetadata.filterId,
+                    setupHandler: () => filterMetadata.setupHandler($selectElement)
+                };
+    });
+}
+
+
+function addVoltageWizards() {
+    _log('addVoltageWizards() Start', DLOG);
     var filterfunctions = [
-        // ['pv127' ,'Voltage - Input',        function(name, e){voltageHelper(name, e);}, '+ helper'],
-        // ['pv569' ,'Voltage Range',        function(name, e){voltageHelper(name, e);}, '+ helper'],
-        // ['pv48' ,'Voltage - Output',    function(name, e){voltageHelper(name, e);}, '+ helper'],
-        // ['pv276' ,'Voltage - Supply',   function(name, e){voltageHelper(name, e);}, '+ helper'],
         // ['pv1112' ,'Voltage - Supply (Vcc/Vdd)',    function(name, e){voltageHelper(name, e);}, '+ helper'],
         // ['pv659' ,'Voltage - Supply, Single/Dual',  function(name, e){voltageHelper(name, e);}, '+ helper'],
         // ['pv1525' ,'Voltage - Output 1',    function(name, e){voltageHelperOLD(name, e);}, '+ helper'],
         // ['pv1526' ,'Voltage - Output 2',    function(name, e){voltageHelperOLD(name, e);}, '+ helper'],
         // ['pv1527' ,'Voltage - Output 3',    function(name, e){voltageHelperOLD(name, e);}, '+ helper'],
-        ['pv252', 'Operating Temperature', function (name, e) { temperatureHelper(name, e); }, '+ helper'],
         // ['pv772' ,'Voltage - Load', function(name, e){voltageHelperOLD(name, e);}, '+ helper'],
-        ['pv1113', 'Connectivity', function (name, e) { checkboxHelper(name, e); }, '+checkboxes'],
-        ['pv1114', 'Peripherals', function (name, e) { checkboxHelper(name, e); }, '+checkboxes'],
-        ['pv16', 'Package / Case', function (name, e) { checkboxHelper2(name, e); }, '+checkboxes'],
-        ['pv1291', 'Supplier Device Package', function (name, e) { checkboxHelper2(name, e); }, '+checkboxes'],
-    ];
-
-    for (var x = 0; x < filterfunctions.length; x++) {
-        $('select[name="' + filterfunctions[x][0] + '"]').parent().append('<span class="adv pure-button myRedButton" order="' + x + '" > ' + filterfunctions[x][3] + '</span>');
-    }
-    $('.adv').click(function () {
-        var i = $(this).attr('order');
-        filterfunctions[i][2](filterfunctions[i][1], $('select[name="' + filterfunctions[i][0] + '"]'));
-    });
-
-    _log('addParamWizards() End', DLOG);
-}
-
-function addParamWizards2() {
-    _log('addParamWizards2() Start', DLOG);
-    var filterfunctions = [
-        ['pv127', 'Voltage - Input', function (name, e) { voltageHelper(name, e); }, '+ helper'],
-        ['pv569', 'Voltage Range', function (name, e) { voltageHelper(name, e); }, '+ helper'],
-        ['pv48', 'Voltage - Output', function (name, e) { voltageHelper(name, e); }, '+ helper'],
-        ['pv276', 'Voltage - Supply', function (name, e) { voltageHelper(name, e); }, '+ helper'],
-        ['pv1112', 'Voltage - Supply (Vcc/Vdd)', function (name, e) { voltageHelper(name, e); }, '+ helper'],
 
     ];
 
@@ -4476,7 +4542,7 @@ function addParamWizards2() {
         }
     }
 
-    _log('addParamWizards2() End', DLOG);
+    _log('addVoltageWizards() End', DLOG);
 }
 
 function addNewHelper(filterData, x) {
@@ -4520,27 +4586,31 @@ function opampVoltageHelper() {
 
 
 
-function voltageHelper(filterData) {
+function voltageHelper($selectElement) {
+    if($selectElement.length === 0 ) {
+        return;
+    }
+
     _log('voltageHelper() Start', DLOG);
+ // 
+    var name = getFilterTitleFromSelectElement($selectElement);
+    var filterId = $selectElement.attr('name');
+    var voltageFilterId = 'filter-' + filterId
+    _log('select name is ' + name + ' ' + filterId + $selectElement.parent().prop('tagName'), DLOG);
 
-    var name = filterData[1];
-    var $selectElem = $('select[name="' + filterData[0] + '"]');
-    var filterid = 'filter-' + filterData[0]
-    _log('select name is ' + name + ' ' + filterData[0] + $selectElem.parent().prop('tagName'));
-
-    $selectElem.parent().append(
-        '<div style="display:flex;"><input id="' + filterid + '" data-name="' + name +
+    $selectElement.parent().append(
+        '<div style="display:flex;"><input id="' + voltageFilterId + '" data-name="' + name +
         '" class="nomRangeText" type="search" autocomplete="off" placeholder="Vnom ex. 3.3" >' +
         // '<button id="'+filterid+'-button" class="clean-gray" ><i class="fa fa-tasks fa-lg" style="color:#555;"></i></button>'+
         '</div>'
     );
-    $selectElem.css('height', '10em');
+    $selectElement.css('height', '10em');
     //TODO differentiate between in and out.... add vin min, vin max
     //TODO add ability to select multi output devices
     //TODO deal with +- ranges
-    _log('voltagehelper name is ' + name + ' $selecteelem children size is ' + $selectElem.children().size(), DLOG);
+    _log('voltagehelper name is ' + name + ' $selecteelem children size is ' + $selectElement.children().size(), DLOG);
 
-    $('#' + filterid).change(function (e) {
+    $('#' + voltageFilterId).change(function (e) {
         var $targetElem = $('select[name="' + this.id.replace('filter-', '') + '"]');
         var name = $(this).attr('data-name');
         e.preventDefault();
@@ -4623,7 +4693,7 @@ function voltageHelper(filterData) {
     // });
 
 
-    $('#' + filterid + '-button').click(function (e) {
+    $('#' + voltageFilterId + '-button').click(function (e) {
         e.preventDefault();
         openAdvancedVoltagePopup(this);
     });
@@ -4669,13 +4739,13 @@ function voltageHelperOLD(name, $selectElem) {
         buttonHighlightAction();
     });
 
-    _log('end voltageHelper');
+    _log('end voltageHelper', DLOG);
 }
-function temperatureHelper(name, $selectElem) {
+function openTemperatureWizard(name, $selectElem) {
     //TODO differentiate between in and out.... add vin min, vin max
     //TODO add ability to select multi output devices
     //TODO deal with +- ranges
-    _log('temperaturehelper name is ' + name + ' $selecteelem children size is ' + $selectElem.children().size(), DLOG);
+    _log('openTemperatureWizard name is ' + name + ' $selecteelem children size is ' + $selectElem.children().size(), DLOG);
     //_log(arguments.callee.caller);
 
     createHelperBox(name, $selectElem, '150px', '200px');
@@ -4702,7 +4772,7 @@ function temperatureHelper(name, $selectElem) {
         buttonHighlightAction();
     });
 
-    _log('end voltageHelper');
+    _log('end voltageHelper', DLOG);
 }
 
 function voltageHelper2(name, $selectElem) {
@@ -4860,7 +4930,7 @@ function applyRangeSelect2(name, $selectElem) {
                 }
             } else if (parseFloat(element) == userinputvalue) {
                 thisOption.prop('selected', true);
-                _log(element, true);
+                _log(element, DLOG);
             }
         });
     });
@@ -4875,7 +4945,7 @@ function applyRangeSelect2(name, $selectElem) {
         } else {
             if (parseFloat(otext) == userinputvalue) {
                 thisOption.prop('selected', true);
-                _log(otext, true);
+                _log(otext, DLOG);
             }
             thisOption.filter(':contains("Up to")').each(function (index) {
                 if ((parseFloat($(this).text().split('Up to')[1]) >= userinputvalue) && (userinputvalue >= 0)) {
@@ -4938,8 +5008,8 @@ function selectInRange(optElem, input) {
     }
 }
 
-function checkboxHelper(name, $selectElem) {
-    _log('checkboxHelper name is ' + name + ' $selecteelem children size is ' + $selectElem.children().size(), DLOG);
+function openCheckboxWizard(name, $selectElem) {
+    _log('openCheckboxWizard name is ' + name + ' $selecteelem children size is ' + $selectElem.children().size(), DLOG);
     createHelperBox(name, $selectElem, '', '80%');
 
     $('#helperBoxContent').html('');
@@ -4989,18 +5059,18 @@ function checkboxHelper(name, $selectElem) {
         }
     });
 
-    _log('end checkboxHelper');
+    _log('end openCheckboxWizard');
 }
 
-function checkboxHelper2(name, $selectElem) {
-    _log('checkboxHelper2 name is ' + name + ' $selecteelem children size is ' + $selectElem.children().size(), DLOG);
-    createHelperBox(name, $selectElem, '', '40%');
+function openCheckboxWizard2(name, $selectElement) {
+    _log('openCheckboxWizard2 name is ' + name + ' $selecteelem children size is ' + $selectElement.children().size(), DLOG);
+    createHelperBox(name, $selectElement, '', '40%');
 
     $('#helperBoxContent').html('');
 
     var masterarray = [];
-    $selectElem.find('option').each(function () {
-        var smalla = $(this).get(0).text.replace('\\n', '').replace('\\c', '').replace(/\(/, '').replace(/\)/, '').replace(/\./, '').split(',');
+    $selectElement.find('option').each(function () {
+        var smalla = $(this).get(0).text.trim().split(CHECKBOX_SEPARATOR);
         masterarray = masterarray.concat(smalla);
         //_log(masterarray);
     });
@@ -5017,26 +5087,26 @@ function checkboxHelper2(name, $selectElem) {
 
     $('#helperBoxContent').find('input[type=checkbox]').change(function () {
         // add logical AND, and OR
-        $selectElem.find('option').prop('selected', false);
-        $selectElem.attr('selectedIndex', 0);
-        _log(' ' + $('#helperBoxContent').find(':checked').length + ' checkboxes checked and ' + $selectElem.find('option').length + ' total option permutations');
+        $selectElement.find('option').prop('selected', false);
+        $selectElement.attr('selectedIndex', 0);
+        _log(' ' + $('#helperBoxContent').find(':checked').length + ' checkboxes checked and ' + $selectElement.find('option').length + ' total option permutations', DLOG);
 
         $('#helperBoxContent').find(':checked').each(function (index) {
-            $selectElem.find('option:contains("' + $(this).parent().text().trim() + '")').prop('selected', true);
-            _log('the box was checked', true);
+            $selectElement.find('option:contains("' + $(this).parent().text().trim() + '")').prop('selected', true);
+            _log('the box was checked', DLOG);
         });
 
         // $selectElem.find(additiveSelector).prop('selected','true');
         // $('#helpertitlemessage').text($selectElem.find('option:selected').length + ' lines selected using ORed combination of checkboxes');
         $('#helpertitlemessage').text($selectElement.find('option:selected').length + ' combination of checkboxes, close to see selected');
-        if ($selectElem.find('option:selected').length > 0) {
+        if ($selectElement.find('option:selected').length > 0) {
             // getRecordsMatching();
         } else {
             $('#helpertitlemessage').text('There are no lines matching all checkboxes');
         }
     });
 
-    _log('end checkboxHelper2');
+    _log('end openCheckboxWizard2', DLOG);
 }
 
 function getAttributeExampleImgs(name, $selectElem) {
