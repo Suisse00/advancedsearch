@@ -4488,7 +4488,7 @@ function addNewHelper(filterData, x) {
 function createHelperBox(name, $selectElem, boxheight, boxwidth) {
     _log('createHelperBox() Start', DLOG);
     $('.helperBox').remove(); // probly not needed
-    $('#content').after('<div class="helperBox gray-grad"><div id="helpertitlemessage" style="float:left;">hello</div><button class="closeHelperBox clean-gray close">X</button><br><br><div id="helperBoxContent"></div></div>');
+    $('#content').after('<div class="helperBox gray-grad"><button class="closeHelperBox clean-gray close">X</button><br><br><div id="helperBoxContent"></div></div>');
     $('.helperBox').css({
         'position': 'relative',
         'border': '1px solid grey',
@@ -4962,7 +4962,6 @@ function checkboxHelper(name, $selectElem) {
         $('#helperBoxContent').append('<label><input type="checkbox"> ' + e + ' </input></label><br> ');
     });
 
-    $('#helperBoxContent').after('ok');
     $('#helperBoxContent').find('input[type=checkbox]').change(function () {
         // add logical AND, and OR
         $selectElem.find('option').prop('selected', false);
@@ -5016,7 +5015,6 @@ function checkboxHelper2(name, $selectElem) {
         $('#helperBoxContent').append('<label><input type="checkbox"> ' + masterarray[x] + ' </input></label><br> ');
     }
 
-    $('#helperBoxContent').after('ok');
     $('#helperBoxContent').find('input[type=checkbox]').change(function () {
         // add logical AND, and OR
         $selectElem.find('option').prop('selected', false);
