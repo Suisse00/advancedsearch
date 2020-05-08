@@ -5028,7 +5028,7 @@ function checkboxHelper2(name, $selectElem) {
 
         // $selectElem.find(additiveSelector).prop('selected','true');
         // $('#helpertitlemessage').text($selectElem.find('option:selected').length + ' lines selected using ORed combination of checkboxes');
-        $('#helpertitlemessage').text('ORed combination of checkboxes, close to see selected');
+        $('#helpertitlemessage').text($selectElement.find('option:selected').length + ' combination of checkboxes, close to see selected');
         if ($selectElem.find('option:selected').length > 0) {
             // getRecordsMatching();
         } else {
